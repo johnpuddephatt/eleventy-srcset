@@ -96,7 +96,7 @@ module.exports = function (eleventyConfig, pluginNamespace) {
     if (!fs.existsSync(outputPath)) {
       sharp(srcPath).resize(width,(height || null),{
         fit: sharp.fit.cover,
-        position: cropPosition || srcsetConfig.cropPosition,
+        position: cropPosition.split('.') || srcsetConfig.cropPosition,
       }).toFile(outputPath)
       .catch( err => { console.log(err) });
     }
