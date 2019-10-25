@@ -6,17 +6,54 @@ const path = require('path');
 const fs = require('fs-extra');
 const { JSDOM } = require('jsdom');
 
-const srcsetConfig = {
-  selector: eleventyConfig.srcsetAutoselector || '.page-body img',
-  srcsetWidths: eleventyConfig.srcsetWidths || [ 320, 640, 960, 1280, 1600 ],
-  fallbackWidth: eleventyConfig.srcsetFallbackWidth || 640,
-  fallbackHeight: eleventyConfig.srcsetFallbackHeight || 360,
-  createCaptions: eleventyConfig.srcsetCreateCaptions || false,
-  dirs: {
-    input: "./src/",
-    output: "./dist/"
+
+module.exports = function (eleventyConfig, pluginNamespace) {
+
+  const srcsetConfig = {
+    selector: eleventyConfig.srcsetAutoselector || '.page-body img',
+    srcsetWidths: eleventyConfig.srcsetWidths || [ 320, 640, 960, 1280, 1600 ],
+    fallbackWidth: eleventyConfig.srcsetFallbackWidth || 640,
+    fallbackHeight: eleventyConfig.srcsetFallbackHeight || 360,
+    createCaptions: eleventyConfig.srcsetCreateCaptions || false,
+    dirs: {
+      input: "./src/",
+      output: "./dist/"
+    }
   }
-}
+
+  eleventyConfig.namespace(pluginNamespace, () => {
+
+    eleventyConfig.addShortcode('srcset', (image, alt, className, width, height, sizes) => {
+      generateImageSizes(image, width, height);
+      let imageExtension = image.split('.').pop();
+      let imageFilename = image.split('.').shift();
+      return `<img
+        srcset="${
+        srcsetConfig.srcsetWidths.map( ( w ) => {
+          return `${ imageFilename }_${ w }w${height ? Math.floor(height/width * w) + 'h' : ''}.${ imageExtension } ${ w }w`
+        } ).join( ', ' )
+        }"
+        sizes="${ sizes ? sizes : '100vw' }"
+        class="${ className }"
+        src="${ imageFilename }_${ width ? width : srcsetConfig.fallbackWidth }w${height ? height + 'h' : ''}.${ imageExtension }"
+        alt="${ alt ? alt : '' }"
+        >`;
+    });
+
+    eleventyConfig.addTransform('autoSrcset', async (content, outputPath) => {
+      if( outputPath.endsWith(".html") && srcsetConfig.selector) {
+        const dom = new JSDOM(content);
+        const images = [...dom.window.document.querySelectorAll(srcsetConfig.selector)];
+        if(images.length > 0) {
+          await Promise.all(images.map(updateImage));
+        }
+        content = dom.serialize();
+        return content;
+      }
+    });
+
+  });
+};
 
 const updateImage = async imgElem => {
   let imageName = imgElem.src;
@@ -65,39 +102,3 @@ const resizeSingleImage = function(image,width,height) {
     .catch( err => { console.log(err) });
   }
 }
-
-
-module.exports = function (eleventyConfig, pluginNamespace) {
-  eleventyConfig.namespace(pluginNamespace, () => {
-
-    eleventyConfig.addShortcode('srcset', (image, alt, className, width, height, sizes) => {
-      generateImageSizes(image, width, height);
-      let imageExtension = image.split('.').pop();
-      let imageFilename = image.split('.').shift();
-      return `<img
-        srcset="${
-        srcsetConfig.srcsetWidths.map( ( w ) => {
-          return `${ imageFilename }_${ w }w${height ? Math.floor(height/width * w) + 'h' : ''}.${ imageExtension } ${ w }w`
-        } ).join( ', ' )
-        }"
-        sizes="${ sizes ? sizes : '100vw' }"
-        class="${ className }"
-        src="${ imageFilename }_${ width ? width : srcsetConfig.fallbackWidth }w${height ? height + 'h' : ''}.${ imageExtension }"
-        alt="${ alt ? alt : '' }"
-        >`;
-    });
-
-    eleventyConfig.addTransform('autoSrcset', async (content, outputPath) => {
-      if( outputPath.endsWith(".html") && srcsetConfig.selector) {
-        const dom = new JSDOM(content);
-        const images = [...dom.window.document.querySelectorAll(srcsetConfig.selector)];
-        if(images.length > 0) {
-          await Promise.all(images.map(updateImage));
-        }
-        content = dom.serialize();
-        return content;
-      }
-    });
-
-  });
-};
