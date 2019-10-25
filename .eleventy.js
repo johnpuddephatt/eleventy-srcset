@@ -10,11 +10,12 @@ const { JSDOM } = require('jsdom');
 module.exports = function (eleventyConfig, pluginNamespace) {
 
   const srcsetConfig = {
-    selector: eleventyConfig.srcsetAutoselector || '.page-body img',
+    autoselector: eleventyConfig.srcsetAutoselector || '.page-body img',
     srcsetWidths: eleventyConfig.srcsetWidths || [ 320, 640, 960, 1280, 1600 ],
     fallbackWidth: eleventyConfig.srcsetFallbackWidth || 640,
     fallbackHeight: eleventyConfig.srcsetFallbackHeight || 360,
     createCaptions: eleventyConfig.srcsetCreateCaptions || false,
+    cropPosition: eleventyConfig.cropPosition || sharp.gravity.center,
     dirs: {
       input: "./src/",
       output: "./dist/"
@@ -23,8 +24,8 @@ module.exports = function (eleventyConfig, pluginNamespace) {
 
   eleventyConfig.namespace(pluginNamespace, () => {
 
-    eleventyConfig.addShortcode('srcset', (image, alt, className, width, height, sizes) => {
-      generateImageSizes(image, width, height);
+    eleventyConfig.addShortcode('srcset', (image, alt, className, width, height, sizes, cropPosition) => {
+      generateImageSizes(image, width, height, cropPosition || null);
       let imageExtension = image.split('.').pop();
       let imageFilename = image.split('.').shift();
       return `<img
@@ -41,9 +42,9 @@ module.exports = function (eleventyConfig, pluginNamespace) {
     });
 
     eleventyConfig.addTransform('autoSrcset', async (content, outputPath) => {
-      if( outputPath.endsWith(".html") && srcsetConfig.selector) {
+      if( outputPath.endsWith(".html") && srcsetConfig.autoselector) {
         const dom = new JSDOM(content);
-        const images = [...dom.window.document.querySelectorAll(srcsetConfig.selector)];
+        const images = [...dom.window.document.querySelectorAll(srcsetConfig.autoselector)];
         if(images.length > 0) {
           await Promise.all(images.map(updateImage));
         }
@@ -70,33 +71,32 @@ module.exports = function (eleventyConfig, pluginNamespace) {
     imgElem.setAttribute('srcset', srcset);
 
     if(srcsetConfig.createCaptions && imgElem.getAttribute('title')) {
-      imgElem.insertAdjacentHTML('afterend', `<figure><img src="${imgElem.src}" srcset="${srcset}"/><figcaption>${imgElem.title}</figcaption></figure>`);
+      imgElem.insertAdjacentHTML('afterend', `<figure><img alt="${imgElem.alt}" src="${imgElem.src}" srcset="${srcset}"/><figcaption>${imgElem.title}</figcaption></figure>`);
       imgElem.remove();
     }
 
     // generate image files
-    resizeImage(imageName, width, height);
+    generateImageSizes(imageName, width, height);
   }
 
   // Function to resize a single image
-  const generateImageSizes = function(image, width, height) {
+  const generateImageSizes = function(image, width, height, cropPosition) {
     fs.ensureDirSync(path.join(process.cwd(), srcsetConfig.dirs.output, 'uploads'));
-    resizeSingleImage(image,width,height);
+    resizeSingleImage(image,width,height,cropPosition || null);
     srcsetConfig.srcsetWidths.forEach((size, counter) => {
-        resizeSingleImage(image,size,(height ? Math.floor(height/width * size) : null));
+        resizeSingleImage(image,size,(height ? Math.floor(height/width * size) : null),cropPosition || null);
     });
   }
 
-  const resizeSingleImage = function(image,width,height) {
+  const resizeSingleImage = function(image,width,height,cropPosition) {
     let srcPath = path.join(process.cwd(), srcsetConfig.dirs.input, image);
     let imageExtension = image.split('.').pop();
     let imageFilename = image.split('.').shift();
     let outputPath = path.join(process.cwd(), srcsetConfig.dirs.output, imageFilename + '_' +  width + 'w' + (height? height + 'h' : '') + '.' + imageExtension);
     if (!fs.existsSync(outputPath)) {
-      sharp(srcPath).resize(width,(height? height : null),{
+      sharp(srcPath).resize(width,(height || null),{
         fit: sharp.fit.cover,
-        position: sharp.strategy.attention
-        // position: sharp.gravity.west
+        position: cropPosition || srcsetConfig.cropPosition,
       }).toFile(outputPath)
       .catch( err => { console.log(err) });
     }
