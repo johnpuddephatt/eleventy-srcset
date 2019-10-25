@@ -1,0 +1,30 @@
+{
+  "name": "eleventy-plugin-srcset",
+  "version": "0.1.2",
+  "description": "An Eleventy plugin which generates responsive images using Sharp",
+  "main": ".eleventy.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/johnpuddephatt/eleventy-srcset.git"
+  },
+  "keywords": [
+    "eleventy"
+  ],
+  "author": {
+    "name": "John Puddephatt",
+    "email": "john@jdp.org.uk",
+    "url": "https://letsdance.agency"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/johnpuddephatt/eleventy-srcset/issues"
+  },
+  "homepage": "https://github.com/johnpuddephatt/eleventy-srcset#readme",
+  "dependencies": {
+    "@11ty/eleventy": "^0.5.2",
+    "fs-extra": "^7.0.1",
+    "jsdom": "^15.1.1",
+    "rimraf": "^2.7.1",
+    "sharp": "^0.23.0"
+  }
+}
