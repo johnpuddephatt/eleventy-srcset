@@ -64,7 +64,12 @@ module.exports = function (eleventyConfig, pluginNamespace) {
     let height = srcsetConfig.fallbackHeight || null;
     let width = srcsetConfig.fallbackWidth;
 
-   // update markup
+    // Create default 'src' image
+    resizeSingleImage(imageName, width, height);
+    imgElem.setAttribute('src', `${ imageFilename }_${ width }w${height ? (height + 'h') : ''}.${ imageExtension }`);
+
+    // create srcset images and markup
+    generateImageSizes(imageName, width, height);
     let srcset = `${
       srcsetConfig.srcsetWidths.map( ( w ) => {
         return `${ imageFilename }_${ w }w${height ? (height/width * w) + 'h' : ''}.${ imageExtension } ${ w }w`
@@ -72,13 +77,15 @@ module.exports = function (eleventyConfig, pluginNamespace) {
       }`;
     imgElem.setAttribute('srcset', srcset);
 
+    // set the sizes attribute
+    imgElem.setAttribute('sizes', `(min-width: ${width}px) ${width}px, 100vw`);
+
+    // Create captions if enabled
     if(srcsetConfig.createCaptions && imgElem.getAttribute('title')) {
       imgElem.insertAdjacentHTML('afterend', `<figure><img alt="${imgElem.alt}" src="${imgElem.src}" srcset="${srcset}"/><figcaption>${imgElem.title}</figcaption></figure>`);
       imgElem.remove();
     }
 
-    // generate image files
-    generateImageSizes(imageName, width, height);
   }
 
   // Function to resize a single image
