@@ -13,9 +13,9 @@ module.exports = function (eleventyConfig, pluginNamespace) {
     autoselector: eleventyConfig.srcsetAutoselector || '.page-body img',
     srcsetWidths: eleventyConfig.srcsetWidths || [ 320, 640, 960, 1280, 1600 ],
     fallbackWidth: eleventyConfig.srcsetFallbackWidth || 640,
-    fallbackHeight: eleventyConfig.srcsetFallbackHeight || 360,
+    fallbackHeight: eleventyConfig.srcsetFallbackHeight || null,
     createCaptions: eleventyConfig.srcsetCreateCaptions || false,
-    cropPosition: eleventyConfig.cropPosition || sharp.gravity.center,
+    cropPosition: eleventyConfig.srcsetCropPosition || "gravity.center",
     dirs: {
       input: "./src/",
       output: "./dist/"
@@ -25,20 +25,22 @@ module.exports = function (eleventyConfig, pluginNamespace) {
   eleventyConfig.namespace(pluginNamespace, () => {
 
     eleventyConfig.addShortcode('srcset', (image, alt, className, width, height, sizes, cropPosition) => {
-      generateImageSizes(image, width, height, cropPosition || null);
-      let imageExtension = image.split('.').pop();
-      let imageFilename = image.split('.').shift();
-      return `<img
-        srcset="${
-        srcsetConfig.srcsetWidths.map( ( w ) => {
-          return `${ imageFilename }_${ w }w${height ? Math.floor(height/width * w) + 'h' : ''}.${ imageExtension } ${ w }w`
-        } ).join( ', ' )
-        }"
-        sizes="${ sizes ? sizes : '100vw' }"
-        class="${ className }"
-        src="${ imageFilename }_${ width ? width : srcsetConfig.fallbackWidth }w${height ? height + 'h' : ''}.${ imageExtension }"
-        alt="${ alt ? alt : '' }"
-        >`;
+      if(image) {
+        generateImageSizes(image, width, height, cropPosition || null);
+        let imageExtension = image.split('.').pop();
+        let imageFilename = image.split('.').shift();
+        return `<img
+          srcset="${
+          srcsetConfig.srcsetWidths.map( ( w ) => {
+            return `${ imageFilename }_${ w }w${height ? Math.floor(height/width * w) + 'h' : ''}.${ imageExtension } ${ w }w`
+          } ).join( ', ' )
+          }"
+          sizes="${ sizes ? sizes : '100vw' }"
+          class="${ className }"
+          src="${ imageFilename }_${ width ? width : srcsetConfig.fallbackWidth }w${height ? height + 'h' : ''}.${ imageExtension }"
+          alt="${ alt ? alt : '' }"
+          >`;
+      }
     });
 
     eleventyConfig.addTransform('autoSrcset', async (content, outputPath) => {
@@ -81,11 +83,13 @@ module.exports = function (eleventyConfig, pluginNamespace) {
 
   // Function to resize a single image
   const generateImageSizes = function(image, width, height, cropPosition) {
-    fs.ensureDirSync(path.join(process.cwd(), srcsetConfig.dirs.output, 'uploads'));
-    resizeSingleImage(image,width,height,cropPosition || null);
-    srcsetConfig.srcsetWidths.forEach((size, counter) => {
-        resizeSingleImage(image,size,(height ? Math.floor(height/width * size) : null),cropPosition || null);
-    });
+    if(image) {
+      fs.ensureDirSync(path.join(process.cwd(), srcsetConfig.dirs.output, image.substring(0, image.lastIndexOf("/"))));
+      resizeSingleImage(image,width,height,cropPosition || null);
+      srcsetConfig.srcsetWidths.forEach((size, counter) => {
+          resizeSingleImage(image,size,(height ? Math.floor(height/width * size) : null),cropPosition || null);
+      });
+    }
   }
 
   const resizeSingleImage = function(image,width,height,cropPosition) {
@@ -96,10 +100,9 @@ module.exports = function (eleventyConfig, pluginNamespace) {
     if (!fs.existsSync(outputPath)) {
       sharp(srcPath).resize(width,(height || null),{
         fit: sharp.fit.cover,
-        position: cropPosition.split('.') || srcsetConfig.cropPosition,
+        position: cropPosition ? sharp[cropPosition.split('.')[0]][cropPosition.split('.')[1]] : sharp[srcsetConfig.cropPosition.split('.')[0]][srcsetConfig.cropPosition.split('.')[1]]
       }).toFile(outputPath)
       .catch( err => { console.log(err) });
     }
   }
-
 };
