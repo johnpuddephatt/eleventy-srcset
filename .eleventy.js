@@ -11,10 +11,11 @@ module.exports = function (eleventyConfig, pluginNamespace) {
 
   const srcsetConfig = {
     autoselector: eleventyConfig.srcsetAutoselector || '.page-body img',
-    srcsetWidths: eleventyConfig.srcsetWidths || [ 320, 640, 960, 1280, 1600 ],
+    srcsetWidths: eleventyConfig.srcsetWidths || [ 320, 480, 640, 960, 1280, 1600 ],
     fallbackWidth: eleventyConfig.srcsetFallbackWidth || 640,
     fallbackHeight: eleventyConfig.srcsetFallbackHeight || null,
     createCaptions: eleventyConfig.srcsetCreateCaptions || false,
+    resizeOriginal: eleventyConfig.resizeOriginal || false,
     cropPosition: eleventyConfig.srcsetCropPosition || "gravity.center",
     dirs: {
       input: "./src/",
@@ -37,7 +38,7 @@ module.exports = function (eleventyConfig, pluginNamespace) {
           }"
           sizes="${ sizes ? sizes : '100vw' }"
           class="${ className }"
-          src="${ imageFilename }_${ width ? width : srcsetConfig.fallbackWidth }w${height ? height + 'h' : ''}.${ imageExtension }"
+          src="${ imageFilename }.${ imageExtension }"
           alt="${ alt ? alt : '' }"
           >`;
       }
@@ -64,9 +65,9 @@ module.exports = function (eleventyConfig, pluginNamespace) {
     let height = srcsetConfig.fallbackHeight || null;
     let width = srcsetConfig.fallbackWidth;
 
-    // Create default 'src' image
-    resizeSingleImage(imageName, width, height);
-    imgElem.setAttribute('src', `${ imageFilename }_${ width }w${height ? (height + 'h') : ''}.${ imageExtension }`);
+    // Create default 'src' image – removed in favour of copying *all* uploads images over, optionally resized.
+    // resizeSingleImage(imageName, width, height);
+    // imgElem.setAttribute('src', `${ imageFilename }_${ width }w${height ? (height + 'h') : ''}.${ imageExtension }`);
 
     // create srcset images and markup
     generateImageSizes(imageName, width, height);
@@ -92,18 +93,28 @@ module.exports = function (eleventyConfig, pluginNamespace) {
   const generateImageSizes = function(image, width, height, cropPosition) {
     if(image) {
       fs.ensureDirSync(path.join(process.cwd(), srcsetConfig.dirs.output, image.substring(0, image.lastIndexOf("/"))));
-      resizeSingleImage(image,width,height,cropPosition || null);
+      // Resize the original image, retaining the same filename
+      if(srcsetConfig.resizeOriginal) {
+        resizeSingleImage(image,width,height,(cropPosition || null),false);
+      } else {
+        resizeSingleImage(image,null,null,(cropPosition || null),false);
+      }
+      // Resize based on srcsetWidths
       srcsetConfig.srcsetWidths.forEach((size, counter) => {
-          resizeSingleImage(image,size,(height ? Math.floor(height/width * size) : null),cropPosition || null);
+          resizeSingleImage(image,size,(height ? Math.floor(height/width * size) : null),(cropPosition || null),true);
       });
     }
   }
 
-  const resizeSingleImage = function(image,width,height,cropPosition) {
+  const resizeSingleImage = function(image,width,height,cropPosition, rename) {
     let srcPath = path.join(process.cwd(), srcsetConfig.dirs.input, image);
     let imageExtension = image.split('.').pop();
     let imageFilename = image.split('.').shift();
-    let outputPath = path.join(process.cwd(), srcsetConfig.dirs.output, imageFilename + '_' +  width + 'w' + (height? height + 'h' : '') + '.' + imageExtension);
+    if(rename) {
+      var outputPath = path.join(process.cwd(), srcsetConfig.dirs.output, imageFilename + '_' +  width + 'w' + (height? height + 'h' : '') + '.' + imageExtension);
+    } else {
+      var outputPath = path.join(process.cwd(), srcsetConfig.dirs.output, imageFilename + '.' + imageExtension);
+    }
     if (!fs.existsSync(outputPath)) {
       sharp(srcPath).resize(width,(height || null),{
         fit: sharp.fit.cover,
