@@ -15,7 +15,7 @@ module.exports = function (eleventyConfig, pluginNamespace) {
     fallbackWidth: eleventyConfig.srcsetFallbackWidth || 640,
     fallbackHeight: eleventyConfig.srcsetFallbackHeight || null,
     createCaptions: eleventyConfig.srcsetCreateCaptions || false,
-    resizeOriginal: eleventyConfig.resizeOriginal || false,
+    resizeOriginal: eleventyConfig.resizeOriginal || true,
     cropPosition: eleventyConfig.srcsetCropPosition || "gravity.center",
     dirs: {
       input: "./src/",
