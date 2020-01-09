@@ -29,7 +29,7 @@ module.exports = function (eleventyConfig, pluginNamespace) {
       if(image) {
         generateImageSizes(image, width, height, cropPosition || null);
         let imageExtension = image.split('.').pop();
-        let imageFilename = image.split('.').shift();
+        let imageFilename = image.split('.').shift().replace(/\s+/g, '-');
         return `<img
           srcset="${
           srcsetConfig.srcsetWidths.map( ( w ) => {
@@ -38,7 +38,7 @@ module.exports = function (eleventyConfig, pluginNamespace) {
           }"
           sizes="${ sizes ? sizes : '100vw' }"
           class="${ className }"
-          src="${ imageFilename }.${ imageExtension }"
+          src="${ image }"
           alt="${ alt ? alt : '' }"
           >`;
       }
