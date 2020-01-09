@@ -61,7 +61,7 @@ module.exports = function (eleventyConfig, pluginNamespace) {
   const updateImage = async imgElem => {
     let imageName = imgElem.src;
     let imageExtension = imageName.split('.').pop();
-    let imageFilename = imageName.split('.').shift();
+    let imageFilename = imageName.split('.').shift().replace(/\s+/g, '-');
     let height = srcsetConfig.fallbackHeight || null;
     let width = srcsetConfig.fallbackWidth;
 
@@ -109,7 +109,7 @@ module.exports = function (eleventyConfig, pluginNamespace) {
   const resizeSingleImage = function(image,width,height,cropPosition, rename) {
     let srcPath = path.join(process.cwd(), srcsetConfig.dirs.input, image);
     let imageExtension = image.split('.').pop();
-    let imageFilename = image.split('.').shift();
+    let imageFilename = image.split('.').shift().replace(/\s+/g, '-');
     if(rename) {
       var outputPath = path.join(process.cwd(), srcsetConfig.dirs.output, imageFilename + '_' +  width + 'w' + (height? height + 'h' : '') + '.' + imageExtension);
     } else {
