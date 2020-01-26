@@ -120,7 +120,7 @@ module.exports = function (eleventyConfig, pluginNamespace) {
         fit: sharp.fit.cover,
         position: cropPosition ? sharp[cropPosition.split('.')[0]][cropPosition.split('.')[1]] : sharp[srcsetConfig.cropPosition.split('.')[0]][srcsetConfig.cropPosition.split('.')[1]]
       }).toFile(outputPath)
-      .catch( err => { console.log(err) });
+      .catch( err => { console.log(`${err} (${image})`) });
     }
   }
 };
