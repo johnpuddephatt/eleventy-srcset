@@ -26,15 +26,16 @@ module.exports = function (eleventyConfig, pluginNamespace) {
   eleventyConfig.namespace(pluginNamespace, () => {
 
     eleventyConfig.addShortcode('srcset', (image, alt, className, width, height, sizes, cropPosition) => {
+
       if(image) {
         generateImageSizes(image, width, height, cropPosition || null);
         let imageExtension = image.split('.').pop();
         let imageFilename = image.split('.').shift().replace(/\s+/g, '-');
         return `<img
           srcset="${
-          srcsetConfig.srcsetWidths.map( ( w ) => {
+          imageFilename != 'svg' ? srcsetConfig.srcsetWidths.map( ( w ) => {
             return `${ imageFilename }_${ w }w${height ? Math.floor(height/width * w) + 'h' : ''}.${ imageExtension } ${ w }w`
-          } ).join( ', ' )
+          } ).join( ', ' ) : null
           }"
           sizes="${ sizes ? sizes : '100vw' }"
           class="${ className }"
@@ -65,25 +66,23 @@ module.exports = function (eleventyConfig, pluginNamespace) {
     let height = srcsetConfig.fallbackHeight || null;
     let width = srcsetConfig.fallbackWidth;
 
-    // Create default 'src' image – removed in favour of copying *all* uploads images over, optionally resized.
-    // resizeSingleImage(imageName, width, height);
-    // imgElem.setAttribute('src', `${ imageFilename }_${ width }w${height ? (height + 'h') : ''}.${ imageExtension }`);
+    if(imageExtension != 'svg') {
+      // create srcset images and markup
+      generateImageSizes(imageName, width, height);
+      let srcset = `${
+        srcsetConfig.srcsetWidths.map( ( w ) => {
+          return `${ imageFilename }_${ w }w${height ? (height/width * w) + 'h' : ''}.${ imageExtension } ${ w }w`
+        } ).join( ', ' )
+        }`;
+      imgElem.setAttribute('srcset', srcset);
 
-    // create srcset images and markup
-    generateImageSizes(imageName, width, height);
-    let srcset = `${
-      srcsetConfig.srcsetWidths.map( ( w ) => {
-        return `${ imageFilename }_${ w }w${height ? (height/width * w) + 'h' : ''}.${ imageExtension } ${ w }w`
-      } ).join( ', ' )
-      }`;
-    imgElem.setAttribute('srcset', srcset);
-
-    // set the sizes attribute
-    imgElem.setAttribute('sizes', `(min-width: ${width}px) ${width}px, 100vw`);
+      // set the sizes attribute
+      imgElem.setAttribute('sizes', `(min-width: ${width}px) ${width}px, 100vw`);
+    }
 
     // Create captions if enabled
     if(srcsetConfig.createCaptions && imgElem.getAttribute('title')) {
-      imgElem.insertAdjacentHTML('afterend', `<figure><img alt="${imgElem.alt}" src="${imgElem.src}" srcset="${srcset}"/><figcaption>${imgElem.title}</figcaption></figure>`);
+      imgElem.insertAdjacentHTML('afterend', `<figure><img alt="${imgElem.alt}" src="${imgElem.src}" srcset="${srcset || null}"/><figcaption>${imgElem.title}</figcaption></figure>`);
       imgElem.remove();
     }
 
