@@ -28,15 +28,17 @@ module.exports = function (eleventyConfig, pluginNamespace) {
     eleventyConfig.addShortcode('srcset', (image, alt, className, width, height, sizes, cropPosition) => {
 
       if(image) {
-        generateImageSizes(image, width, height, cropPosition || null);
         let imageExtension = image.split('.').pop();
         let imageFilename = image.split('.').shift().replace(/\s+/g, '-');
+
+        generateImageSizes(image, width, height, cropPosition || null);
+
+        let srcSet = imageExtension != 'svg' ? srcsetConfig.srcsetWidths.map( ( w ) => {
+          return `${ imageFilename }_${ w }w${height ? Math.floor(height/width * w) + 'h' : ''}.${ imageExtension } ${ w }w`
+        } ).join( ', ' ) : '';
+
         return `<img
-          srcset="${
-          imageFilename != 'svg' ? srcsetConfig.srcsetWidths.map( ( w ) => {
-            return `${ imageFilename }_${ w }w${height ? Math.floor(height/width * w) + 'h' : ''}.${ imageExtension } ${ w }w`
-          } ).join( ', ' ) : null
-          }"
+          srcset="${ srcSet }"
           sizes="${ sizes ? sizes : '100vw' }"
           class="${ className }"
           src="${ image }"
@@ -66,16 +68,16 @@ module.exports = function (eleventyConfig, pluginNamespace) {
     let height = srcsetConfig.fallbackHeight || null;
     let width = srcsetConfig.fallbackWidth;
 
+    generateImageSizes(imageName, width, height);
+
     if(imageExtension != 'svg') {
       // create srcset images and markup
-      generateImageSizes(imageName, width, height);
       let srcset = `${
         srcsetConfig.srcsetWidths.map( ( w ) => {
           return `${ imageFilename }_${ w }w${height ? (height/width * w) + 'h' : ''}.${ imageExtension } ${ w }w`
         } ).join( ', ' )
         }`;
       imgElem.setAttribute('srcset', srcset);
-
       // set the sizes attribute
       imgElem.setAttribute('sizes', `(min-width: ${width}px) ${width}px, 100vw`);
     }
@@ -91,6 +93,9 @@ module.exports = function (eleventyConfig, pluginNamespace) {
   // Function to resize a single image
   const generateImageSizes = function(image, width, height, cropPosition) {
     if(image) {
+      let imageFilename = image.split('.').shift().replace(/\s+/g, '-');
+      let imageExtension = image.split('.').pop();
+
       fs.ensureDirSync(path.join(process.cwd(), srcsetConfig.dirs.output, image.substring(0, image.lastIndexOf("/"))));
       // Resize the original image, retaining the same filename
       if(srcsetConfig.resizeOriginal) {
@@ -99,9 +104,11 @@ module.exports = function (eleventyConfig, pluginNamespace) {
         resizeSingleImage(image,null,null,(cropPosition || null),false);
       }
       // Resize based on srcsetWidths
-      srcsetConfig.srcsetWidths.forEach((size, counter) => {
-          resizeSingleImage(image,size,(height ? Math.floor(height/width * size) : null),(cropPosition || null),true);
-      });
+      if(imageExtension != 'svg') {
+        srcsetConfig.srcsetWidths.forEach((size, counter) => {
+            resizeSingleImage(image,size,(height ? Math.floor(height/width * size) : null),(cropPosition || null),true);
+        });
+      }
     }
   }
 
@@ -115,11 +122,16 @@ module.exports = function (eleventyConfig, pluginNamespace) {
       var outputPath = path.join(process.cwd(), srcsetConfig.dirs.output, imageFilename + '.' + imageExtension);
     }
     if (!fs.existsSync(outputPath)) {
-      sharp(srcPath).resize(width,(height || null),{
-        fit: sharp.fit.cover,
-        position: cropPosition ? sharp[cropPosition.split('.')[0]][cropPosition.split('.')[1]] : sharp[srcsetConfig.cropPosition.split('.')[0]][srcsetConfig.cropPosition.split('.')[1]]
-      }).toFile(outputPath)
-      .catch( err => { console.log(`${err} (${image})`) });
+      if(imageExtension != 'svg') {
+        sharp(srcPath).resize(width,(height || null),{
+          fit: sharp.fit.cover,
+          position: cropPosition ? sharp[cropPosition.split('.')[0]][cropPosition.split('.')[1]] : sharp[srcsetConfig.cropPosition.split('.')[0]][srcsetConfig.cropPosition.split('.')[1]]
+        }).toFile(outputPath)
+        .catch( err => { console.log(`${err} (${image})`) });
+      } else {
+        fs.copyFile(srcPath,outputPath);
+        console.log('svg copied to ' + outputPath);
+      }
     }
   }
 };
