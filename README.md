@@ -5,7 +5,7 @@ This [Eleventy](https://www.11ty.dev/) plugin generates responsive image markup 
 It can be used in two ways:
 
 1. The manual inserted **shortcode**, {% srcset %}
-2. The automatic **filter**, mode which finds images based on a provided CSS selector
+2. The automatic **filter** mode, which finds images based on a provided CSS selector
 
 ### Configuration
 
