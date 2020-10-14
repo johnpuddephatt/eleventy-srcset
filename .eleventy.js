@@ -57,6 +57,9 @@ module.exports = function (eleventyConfig, pluginNamespace) {
         content = dom.serialize();
         return content;
       }
+      else {
+        return content;
+      }
     });
 
   });
