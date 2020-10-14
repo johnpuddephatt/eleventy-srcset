@@ -5,7 +5,7 @@ This [Eleventy](https://www.11ty.dev/) plugin generates responsive image markup 
 It can be used in two ways:
 
 1. The manual inserted **shortcode**, {% srcset %}
-2. The automatic **filter**, mode which finds images based on a provided CSS selector
+2. The automatic **filter** mode, which finds images based on a provided CSS selector
 
 ### Configuration
 
@@ -28,10 +28,12 @@ The shortcode syntax is:
 
 {% srcset image, alt, className, width, height, sizes, cropPosition %}
 
-Image: Path to input image
-Alt: Image alt text
-className: Desired class of output image
-width: Image width (used to establish image aspect ratio)
-height: Image height (used to establish image aspect ratio)
-sizes: Image sizes attribute, e.g. "(min-width: 600px) 50vw, 100vw"
-cropPosition: Sharp crop position, e.g. gravity.centre
+| Attribute | Details |
+|---|---|
+|image| Path to input image|
+|alt|Image alt text|
+|className|Desired class of output image|
+|width|Image width (used to establish image aspect ratio)|
+|height|Image height (used to establish image aspect ratio)|
+|sizes|Image sizes attribute, e.g. "(min-width: 600px) 50vw, 100vw"|
+|cropPosition|Sharp crop position, e.g. gravity.centre|
