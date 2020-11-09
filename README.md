@@ -1,17 +1,24 @@
-@todo
-
-This [Eleventy](https://www.11ty.dev/) plugin generates responsive image markup along with the corresponding image files.
+**This [Eleventy](https://www.11ty.dev/) plugin generates responsive image markup along with the corresponding image files.**
 
 It can be used in two ways:
 
-1. The manual inserted **shortcode**, {% srcset %}
+1. The manually inserted **shortcode**, {% srcset %}
 2. The automatic **filter** mode, which finds images based on a provided CSS selector
 
-### Configuration
+## Configuration
 
+The plugin can be configured by passing a config object when adding the plugin:
+````
+eleventyConfig.addPlugin( pluginSrcsetImg, {
+  srcsetWidths: [200, 320, 480, 640, 960, 1280, 1600],
+});
+````
+Configuration added will override the defaults given in the table below.
+ 
+  
 | Value | Details | Default |
 |---|---|---|
-|autoselector|Specifies the CSS selector used to automatically find <img> elements to replace.|'.page-body img'|
+|autoselector|Specifies the CSS selector used to automatically find <img> elements you want to generate images and markup for. Set this to null if you do not want to find images automatically. |'.page-body img'|
 |srcsetWidths|An array of the breakpoint widths used to generate images|[ 320, 480, 640, 960, 1280, 1600 ]|
 |fallbackWidth|The width for the fallback 'src' image|640|
 |fallbackHeight|The height for the fallback 'src' image, when null the image will be automatic based on the aspect ratio and fallbackWidth|null|
@@ -22,7 +29,7 @@ It can be used in two ways:
 |dirs.output|Path to output directory|./dist|
 
 
-### Using the shortcode
+## Using the shortcode
 
 The shortcode syntax is:
 
