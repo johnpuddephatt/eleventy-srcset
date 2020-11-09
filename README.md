@@ -7,10 +7,12 @@ It can be used in two ways:
 
 ## Configuration
 
-The plugin can be configured by passing a config object when adding the plugin:
+The plugin can be configured by passing a config object when adding the plugin, e.g.:
 ````
 eleventyConfig.addPlugin( pluginSrcsetImg, {
-  srcsetWidths: [200, 320, 480, 640, 960, 1280, 1600],
+  srcsetWidths: [540, 900, 1024],
+  autoselector: '.post-content img',
+  createCaptions: true
 });
 ````
 Configuration added will override the defaults given in the table below.
