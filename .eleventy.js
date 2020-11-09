@@ -4,137 +4,144 @@ const sharp = require('sharp');
 const rimraf = require('rimraf');
 const path = require('path');
 const fs = require('fs-extra');
-const { JSDOM } = require('jsdom');
+const {
+  JSDOM
+} = require('jsdom');
+const crypto = require('crypto');
 
+module.exports = function(eleventyConfig, options) {
 
-module.exports = function (eleventyConfig, pluginNamespace) {
-
-  const srcsetConfig = {
-    autoselector: eleventyConfig.srcsetAutoselector || '.page-body img',
-    srcsetWidths: eleventyConfig.srcsetWidths || [ 320, 480, 640, 960, 1280, 1600 ],
-    fallbackWidth: eleventyConfig.srcsetFallbackWidth || 640,
-    fallbackHeight: eleventyConfig.srcsetFallbackHeight || null,
-    createCaptions: eleventyConfig.srcsetCreateCaptions || false,
-    resizeOriginal: eleventyConfig.resizeOriginal || true,
-    cropPosition: eleventyConfig.srcsetCropPosition || "gravity.center",
+  const defaults = {
+    autoselector: '.page-body img',
+    srcsetWidths: [320, 480, 640, 960, 1280, 1600],
+    fallbackWidth: 640,
+    fallbackHeight: null,
+    createCaptions: false,
+    resizeOriginal: true,
+    cropPosition: "gravity.center",
     dirs: {
+      temp: "./.tmp/",
       input: "./src/",
       output: "./dist/"
     }
   }
 
-  eleventyConfig.namespace(pluginNamespace, () => {
+  const config = {
+    ...defaults,
+    ...options
+  }
 
-    eleventyConfig.addShortcode('srcset', (image, alt, className, width, height, sizes, cropPosition) => {
-
-      if(image) {
-        let imageExtension = image.split('.').pop();
-        let imageFilename = image.split('.').shift().replace(/\s+/g, '-');
-
-        generateImageSizes(image, width, height, cropPosition || null);
-
-        let srcSet = imageExtension != 'svg' ? srcsetConfig.srcsetWidths.map( ( w ) => {
-          return `${ imageFilename }_${ w }w${height ? Math.floor(height/width * w) + 'h' : ''}.${ imageExtension } ${ w }w`
-        } ).join( ', ' ) : '';
-
-        return `<img
-          srcset="${ srcSet }"
-          sizes="${ sizes ? sizes : '100vw' }"
-          class="${ className }"
-          src="${ image }"
-          alt="${ alt ? alt : '' }"
-          >`;
+  eleventyConfig.on('afterBuild', () => {
+    let tempDir = path.join(process.cwd(), config.dirs.temp);
+    let outputDir = path.join(process.cwd(), config.dirs.output);
+    fs.copy(tempDir, outputDir, function(err) {
+      if (err) {
+        console.error(err);
       }
     });
-
-    eleventyConfig.addTransform('autoSrcset', async (content, outputPath) => {
-      if( outputPath.endsWith(".html") && srcsetConfig.autoselector) {
-        const dom = new JSDOM(content);
-        const images = [...dom.window.document.querySelectorAll(srcsetConfig.autoselector)];
-        if(images.length > 0) {
-          await Promise.all(images.map(updateImage));
-        }
-        content = dom.serialize();
-        return content;
-      }
-      else {
-        return content;
-      }
-    });
-
   });
 
-  const updateImage = async imgElem => {
-    let imageName = imgElem.src;
-    let imageExtension = imageName.split('.').pop();
-    let imageFilename = imageName.split('.').shift().replace(/\s+/g, '-');
-    let height = srcsetConfig.fallbackHeight || null;
-    let width = srcsetConfig.fallbackWidth;
+  function hasSvgExtension(image) {
+    let imageExtension = image.split('.').pop();
+    return imageExtension == 'svg';
+  }
 
-    generateImageSizes(imageName, width, height);
+  function createHash(values) {
+    return crypto.createHash('md5').update(values.join('')).digest('hex');
+  }
 
-    if(imageExtension != 'svg') {
-      // create srcset images and markup
-      let srcset = `${
-        srcsetConfig.srcsetWidths.map( ( w ) => {
-          return `${ imageFilename }_${ w }w${height ? (height/width * w) + 'h' : ''}.${ imageExtension } ${ w }w`
-        } ).join( ', ' )
-        }`;
-      imgElem.setAttribute('srcset', srcset);
-      // set the sizes attribute
-      imgElem.setAttribute('sizes', `(min-width: ${width}px) ${width}px, 100vw`);
+  function getDirectory(image) {
+    return path.join(process.cwd(), config.dirs.temp, image.substring(0, image.lastIndexOf("/")));
+  }
+
+  function getFilename(image) {
+    return image.split('.').shift().replace(/\s+/g, '-');
+  }
+
+  function getExtension(image) {
+    return image.split('.').pop();
+  }
+
+  function getInputPath(image) {
+    return path.join(process.cwd(), config.dirs.input, image);
+  }
+
+  function getOutputPath(outputName) {
+    return path.join(process.cwd(), config.dirs.temp, outputName);
+  }
+
+  function sharpCropStringToArray(string) {
+    return sharp[string.split('.')[0]][string.split('.')[1]];
+  }
+
+  eleventyConfig.addShortcode('srcset', (image, alt, className = null, width, height, sizes, cropPosition) => {
+    if(image) {
+      return `<img
+        srcset="${ !hasSvgExtension(image) ? generateImageSizes(image, width, height, cropPosition) : ''}"
+        sizes="${ sizes ?? '100vw' }"
+        class="${ className ?? null }"
+        src="${ generateImage(image, width, height, cropPosition) }"
+        alt="${ alt ?? '' }"
+        >`;
+    }
+  });
+
+  eleventyConfig.addTransform('autoSrcset', async (content, outputPath) => {
+    if (outputPath.endsWith(".html") && config.autoselector) {
+      const dom = new JSDOM(content);
+      const images = [...dom.window.document.querySelectorAll(config.autoselector)];
+      if (images.length > 0) {
+        await Promise.all(images.map(updateImage));
+      }
+      content = dom.serialize();
     }
 
-    // Create captions if enabled
-    if(srcsetConfig.createCaptions && imgElem.getAttribute('title')) {
+    return content;
+  });
+
+  function generateImage(image, width, height, cropPosition) {
+    config.resizeOriginal ? resizeSingleImage(image, width, height, cropPosition, false) : resizeSingleImage(image);
+  }
+
+  const updateImage = async imgElem => {
+    let image = imgElem.src;
+
+    if (!hasSvgExtension(image)) {
+      imgElem.setAttribute('srcset', generateImageSizes(image, config.fallbackWidth, config.fallbackHeight, config.cropPosition));
+      imgElem.setAttribute('sizes', `(min-width: ${ config.fallbackWidth }px) ${ config.fallbackWidth }px, 100vw`);
+    }
+
+    if (config.createCaptions && imgElem.getAttribute('title')) {
       imgElem.insertAdjacentHTML('afterend', `<figure><img alt="${imgElem.alt}" src="${imgElem.src}" srcset="${srcset || null}"/><figcaption>${imgElem.title}</figcaption></figure>`);
       imgElem.remove();
     }
-
   }
 
-  // Function to resize a single image
-  const generateImageSizes = function(image, width, height, cropPosition) {
-    if(image) {
-      let imageFilename = image.split('.').shift().replace(/\s+/g, '-');
-      let imageExtension = image.split('.').pop();
+  const generateImageSizes = function(image, width, height, cropPosition = null) {
+    fs.ensureDirSync(getDirectory(image));
 
-      fs.ensureDirSync(path.join(process.cwd(), srcsetConfig.dirs.output, image.substring(0, image.lastIndexOf("/"))));
-      // Resize the original image, retaining the same filename
-      if(srcsetConfig.resizeOriginal) {
-        resizeSingleImage(image,width,height,(cropPosition || null),false);
-      } else {
-        resizeSingleImage(image,null,null,(cropPosition || null),false);
-      }
-      // Resize based on srcsetWidths
-      if(imageExtension != 'svg') {
-        srcsetConfig.srcsetWidths.forEach((size, counter) => {
-            resizeSingleImage(image,size,(height ? Math.floor(height/width * size) : null),(cropPosition || null),true);
-        });
-      }
-    }
+   return config.srcsetWidths.map((w) => {
+      let computedHeight = height ? Math.floor(height / width * w) : 0;
+      return `${resizeSingleImage(image, w, computedHeight, cropPosition, true)} ${ w }w`;
+    }).join(', ');
   }
 
-  const resizeSingleImage = function(image,width,height,cropPosition, rename) {
-    let srcPath = path.join(process.cwd(), srcsetConfig.dirs.input, image);
-    let imageExtension = image.split('.').pop();
-    let imageFilename = image.split('.').shift().replace(/\s+/g, '-');
-    if(rename) {
-      var outputPath = path.join(process.cwd(), srcsetConfig.dirs.output, imageFilename + '_' +  width + 'w' + (height? height + 'h' : '') + '.' + imageExtension);
-    } else {
-      var outputPath = path.join(process.cwd(), srcsetConfig.dirs.output, imageFilename + '.' + imageExtension);
-    }
-    if (!fs.existsSync(outputPath)) {
-      if(imageExtension != 'svg') {
-        sharp(srcPath).resize(width,(height || null),{
+  const resizeSingleImage = function(image, width, height, cropPosition, rename) {
+
+    var outputFilename = rename ? `${getFilename(image)}_${createHash([image, width, height, config.cropPosition])}.${getExtension(image)}` : `${getFilename(image)}.${getExtension(image)}`;
+
+    if (!fs.existsSync(getOutputPath(image))) {
+      if(!hasSvgExtension(image)) {
+        sharp(getInputPath(image)).resize(width, (height || null), {
           fit: sharp.fit.cover,
-          position: cropPosition ? sharp[cropPosition.split('.')[0]][cropPosition.split('.')[1]] : sharp[srcsetConfig.cropPosition.split('.')[0]][srcsetConfig.cropPosition.split('.')[1]]
-        }).toFile(outputPath)
-        .catch( err => { console.log(`${err} (${image})`) });
-      } else {
-        fs.copyFile(srcPath,outputPath);
-        console.log('svg copied to ' + outputPath);
+          position: sharpCropStringToArray(cropPosition || config.cropPosition)
+        }).toFile(getOutputPath(outputFilename))
+      }
+      else {
+        fs.copyFile(image, config.dirs.temp);
       }
     }
+
+    return outputFilename;
   }
 };
