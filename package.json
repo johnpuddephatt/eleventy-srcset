@@ -1,6 +1,6 @@
 {
   "name": "eleventy-plugin-srcset",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "description": "An Eleventy plugin which generates responsive images using Sharp",
   "main": ".eleventy.js",
   "repository": {

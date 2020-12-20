@@ -16,7 +16,7 @@ module.exports = function(eleventyConfig, options) {
     srcsetWidths: [320, 480, 640, 960, 1280, 1600],
     fallbackWidth: 640,
     fallbackHeight: null,
-    createCaptions: false,
+    createCaptionFromTitle: false,
     resizeOriginal: true,
     cropPosition: "gravity.center",
     dirs: {
@@ -25,6 +25,8 @@ module.exports = function(eleventyConfig, options) {
       output: "./dist/"
     }
   }
+
+  let processedImageArray = [];
 
   const config = {
     ...defaults,
@@ -39,6 +41,19 @@ module.exports = function(eleventyConfig, options) {
         console.error(err);
       }
     });
+
+    // let toDelete = fs.readdirSync(config.dirs.temp).filter( ( el ) => !imageArray.includes( el ) );
+    // console.log(toDelete);
+    //
+    // toDelete.forEach(file => {
+    //   let pathToFile = getTempPath(file);
+    //   console.log('maybe unlink... ', pathToFile);
+    //   if(!fs.lstatSync(pathToFile).isDirectory()) {
+    //     console.log('unlink... ', pathToFile);
+    //     fs.unlink(pathToFile);
+    //   }
+    // });
+
   });
 
   function hasSvgExtension(image) {
@@ -66,7 +81,7 @@ module.exports = function(eleventyConfig, options) {
     return path.join(process.cwd(), config.dirs.input, image);
   }
 
-  function getOutputPath(outputName) {
+  function getTempPath(outputName) {
     return path.join(process.cwd(), config.dirs.temp, outputName);
   }
 
@@ -77,21 +92,21 @@ module.exports = function(eleventyConfig, options) {
   eleventyConfig.addShortcode('srcset', (image, alt, className = null, width, height, sizes, cropPosition) => {
     if(image) {
       return `<img
-        srcset="${ !hasSvgExtension(image) ? generateImageSizes(image, width, height, cropPosition) : ''}"
-        sizes="${ sizes ?? '100vw' }"
-        class="${ className ?? null }"
-        src="${ generateImage(image, width, height, cropPosition) }"
-        alt="${ alt ?? '' }"
-        >`;
+                srcset="${ !hasSvgExtension(image) ? generateSrcset(image, width, height, cropPosition) : ''}"
+                sizes="${ sizes || '100vw' }"
+                class="${ className || '' }"
+                src="${ generateSrc(image, width, height, cropPosition) }"
+                alt="${ alt || '' }"
+                >`;
     }
   });
 
   eleventyConfig.addTransform('autoSrcset', async (content, outputPath) => {
-    if (outputPath.endsWith(".html") && config.autoselector) {
+    if (config.autoselector && outputPath.endsWith(".html")) {
       const dom = new JSDOM(content);
       const images = [...dom.window.document.querySelectorAll(config.autoselector)];
       if (images.length > 0) {
-        await Promise.all(images.map(updateImage));
+        await Promise.all(images.map(updateExistingImg));
       }
       content = dom.serialize();
     }
@@ -99,43 +114,50 @@ module.exports = function(eleventyConfig, options) {
     return content;
   });
 
-  function generateImage(image, width, height, cropPosition) {
+  const generateSrc = function(image, width = config.fallbackWidth, height = config.fallbackHeight, cropPosition = config.cropPosition) {
     config.resizeOriginal ? resizeSingleImage(image, width, height, cropPosition, false) : resizeSingleImage(image);
   }
 
-  const updateImage = async imgElem => {
+  const updateExistingImg = async imgElem => {
     let image = imgElem.src;
 
-    if (!hasSvgExtension(image)) {
-      imgElem.setAttribute('srcset', generateImageSizes(image, config.fallbackWidth, config.fallbackHeight, config.cropPosition));
+    if(!hasSvgExtension(image)) {
+      imgElem.setAttribute('srcset', generateSrcset(image));
       imgElem.setAttribute('sizes', `(min-width: ${ config.fallbackWidth }px) ${ config.fallbackWidth }px, 100vw`);
+      imgElem.setAttribute('src', generateSrc(image));
     }
 
-    if (config.createCaptions && imgElem.getAttribute('title')) {
-      imgElem.insertAdjacentHTML('afterend', `<figure><img alt="${imgElem.alt}" src="${imgElem.src}" srcset="${srcset || null}"/><figcaption>${imgElem.title}</figcaption></figure>`);
+    if (config.createCaptionFromTitle && imgElem.getAttribute('title')) {
+      imgElem.insertAdjacentHTML(
+        'afterend',
+        `<figure>
+          <img alt="${ imgElem.alt || null }" src="${ imgElem.src }" srcset="${ imgElem.srcset || null }" sizes="${ imgElem.sizes || null }" />
+          <figcaption>${ imgElem.title }</figcaption>
+        </figure>`);
       imgElem.remove();
     }
   }
 
-  const generateImageSizes = function(image, width, height, cropPosition = null) {
+  const generateSrcset = function(image, width = config.fallbackWidth, height = config.fallbackHeight, cropPosition = config.cropPosition) {
     fs.ensureDirSync(getDirectory(image));
 
-   return config.srcsetWidths.map((w) => {
-      let computedHeight = height ? Math.floor(height / width * w) : 0;
+    return config.srcsetWidths.map((w) => {
+      let computedHeight = height ? Math.floor(height / width * w) : null;
       return `${resizeSingleImage(image, w, computedHeight, cropPosition, true)} ${ w }w`;
     }).join(', ');
   }
 
   const resizeSingleImage = function(image, width, height, cropPosition, rename) {
+    var outputFilename = `${getFilename(image)}_${createHash([image, width, height, cropPosition, fs.statSync(getInputPath(image)).mtime])}.${getExtension(image)}`;
 
-    var outputFilename = rename ? `${getFilename(image)}_${createHash([image, width, height, config.cropPosition])}.${getExtension(image)}` : `${getFilename(image)}.${getExtension(image)}`;
+    processedImageArray.push(outputFilename);
 
-    if (!fs.existsSync(getOutputPath(image))) {
+    if (!fs.existsSync(getTempPath(image))) {
       if(!hasSvgExtension(image)) {
-        sharp(getInputPath(image)).resize(width, (height || null), {
+        sharp(getInputPath(image)).resize(width, height, {
           fit: sharp.fit.cover,
-          position: sharpCropStringToArray(cropPosition || config.cropPosition)
-        }).toFile(getOutputPath(outputFilename))
+          position: sharpCropStringToArray(cropPosition)
+        }).toFile(getTempPath(outputFilename))
       }
       else {
         fs.copyFile(image, config.dirs.temp);
