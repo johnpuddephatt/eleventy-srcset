@@ -86,17 +86,20 @@ module.exports = function(eleventyConfig, options) {
   }
 
   function sharpCropStringToArray(string) {
-    return sharp[string.split('.')[0]][string.split('.')[1]];
+    if(string) {
+      return sharp[string.split('.')[0]][string.split('.')[1]];
+    }
   }
 
-  eleventyConfig.addShortcode('srcset', (image, alt, className = null, width, height, sizes, cropPosition) => {
+  eleventyConfig.addShortcode('srcset', (image, alt, className = null, width, height, sizes, cropPosition, lazy) => {
     if(image) {
       return `<img
                 srcset="${ !hasSvgExtension(image) ? generateSrcset(image, width, height, cropPosition) : ''}"
                 sizes="${ sizes || '100vw' }"
                 class="${ className || '' }"
-                src="${ generateSrc(image, width, height, cropPosition) }"
+                src="${ config.resizeOriginal ? generateSrc(image, width, height, cropPosition) : image }"
                 alt="${ alt || '' }"
+                loading="${ lazy ? 'lazy' : 'eager'}"
                 >`;
     }
   });
@@ -147,7 +150,7 @@ module.exports = function(eleventyConfig, options) {
     }).join(', ');
   }
 
-  const resizeSingleImage = function(image, width, height, cropPosition, rename) {
+  const resizeSingleImage = function(image, width = '', height, cropPosition, rename) {
     var outputFilename = `${getFilename(image)}_${createHash([image, width, height, cropPosition, fs.statSync(getInputPath(image)).mtime])}.${getExtension(image)}`;
 
     processedImageArray.push(outputFilename);

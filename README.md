@@ -16,8 +16,8 @@ eleventyConfig.addPlugin( pluginSrcsetImg, {
 });
 ````
 Configuration added will override the defaults given in the table below.
- 
-  
+
+
 | Value | Details | Default |
 |---|---|---|
 |autoselector|Specifies the CSS selector used to automatically find <img> elements you want to generate images and markup for. Set this to null if you do not want to find images automatically. |'.page-body img'|
@@ -46,3 +46,4 @@ The shortcode syntax is:
 |height|Image height (used to establish image aspect ratio)|
 |sizes|Image sizes attribute, e.g. "(min-width: 600px) 50vw, 100vw"|
 |cropPosition|Sharp crop position, e.g. gravity.centre|
+|lazyload|Set this to be true to lazyload images.|
