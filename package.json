@@ -8,7 +8,8 @@
     "url": "git+https://github.com/johnpuddephatt/eleventy-srcset.git"
   },
   "keywords": [
-    "eleventy"
+    "eleventy",
+    "eleventy-plugin"
   ],
   "author": {
     "name": "John Puddephatt",
