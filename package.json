@@ -1,6 +1,6 @@
 {
   "name": "eleventy-plugin-srcset",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "description": "An Eleventy plugin which generates responsive images using Sharp",
   "main": ".eleventy.js",
   "repository": {
@@ -21,10 +21,9 @@
   },
   "homepage": "https://github.com/johnpuddephatt/eleventy-srcset#readme",
   "dependencies": {
-    "@11ty/eleventy": "^0.5.2",
     "fs-extra": "^7.0.1",
     "jsdom": "^15.1.1",
     "rimraf": "^2.7.1",
-    "sharp": "^0.23.0"
+    "sharp": "^0.27.0"
   }
 }
