@@ -22,7 +22,7 @@
   "homepage": "https://github.com/johnpuddephatt/eleventy-srcset#readme",
   "dependencies": {
     "fs-extra": "^7.0.1",
-    "jsdom": "^15.1.1",
+    "jsdom": "^16.5.0",
     "rimraf": "^2.7.1",
     "sharp": "^0.30.1"
   }
